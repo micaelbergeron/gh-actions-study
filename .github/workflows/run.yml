@@ -14,3 +14,25 @@ jobs:
               run: |
                 echo "Running workflow on push"
                 uname -a
+
+    generate-matrix:
+        runs-on: ubuntu-latest
+        outputs:
+            matrix_config: ${{ steps.read_file.outputs.matrix_data }}
+        steps:
+          - name: Checkout repository
+            uses: actions/checkout@v4
+
+          - name: Read matrix configuration from file
+            id: read_file
+            run: echo "matrix_data=$(cat matrix-job.json)" >> "$GITHUB_OUTPUT"
+
+    matrix-job:
+        needs: [generate-matrix]
+        runs-on: ubuntu-latest
+        strategy:
+            matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix_config) }}
+        steps:
+          - name: Run job with matrix value
+            run: |
+                echo "Current matrix value: ${{ matrix.filename }}"
