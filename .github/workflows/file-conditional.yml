@@ -1,0 +1,57 @@
+name: File Conditional Workflow
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  check-file:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.check.outputs.exists }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if trigger file exists
+        id: check
+        run: |
+          if [ -f "config/enable-workflow.txt" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Trigger file found - workflow will run"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "❌ Trigger file not found - workflow will be skipped"
+          fi
+
+  conditional-job:
+    runs-on: ubuntu-latest
+    needs: check-file
+    if: needs.check-file.outputs.should-run == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run conditional job
+        run: |
+          echo "🎉 This job runs only when config/enable-workflow.txt exists!"
+          echo "File presence check passed - executing workflow logic"
+
+      - name: Display file contents
+        run: |
+          echo "Contents of the trigger file:"
+          cat config/enable-workflow.txt
+
+  skipped-notification:
+    runs-on: ubuntu-latest
+    needs: check-file
+    if: needs.check-file.outputs.should-run != 'true'
+    steps:
+      - name: Notify skip
+        run: |
+          echo "ℹ️ Conditional job was skipped because"
+          echo "config/enable-workflow.txt does not exist"
+          echo "To enable: create config/enable-workflow.txt"
